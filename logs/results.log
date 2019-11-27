@@ -1,0 +1,22 @@
+8Mbps, main -> 94.15 sec -> logs: 2019-1-27-16-11
+
+1Mbps, main -> 646.766 sec -> logs -> 2019-11-27-17-45
+1Mbps, round_robin -> 496.325 sec -> logs -> 2019-11-27-17-58
+1Mbps, round_robin -> 755.774 sec -> logs -> 2019-11-27-18-07
+
+
+1Mbps, main -> 451.756 sec -> logs -> 2019-11-27-19-20
+1Mbps, round_robin -> 597.877 sec -> logs -> 2019-11-27-19-04
+1Mbps, random -> 512.412 sec -> logs -> 2019-11-27-19-04
+
+
+1Mbps, main -> 455.756 sec -> logs -> 2019-11-27-19-20 
+1Mbps, round_robin -> 790.083 sec -> logs -> 2019-11-27-19-29 
+1Mbps, random -> 872.083 sec -> logs -> 2019-11-27-19-43
+
+
+20Mbps, main -> 54.35 sec -> logs -> 2019-11-27-20-01 
+20Mbps, round_robin -> 39.614 sec -> logs -> 2019-11-27-20-03 
+20Mbps, random -> 55.038 sec -> logs -> 2019-11-27-20-04
+
+---------------------------------------------------------------
