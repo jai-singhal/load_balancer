@@ -17,7 +17,13 @@ import threading
 
 fileDownloaded = []
 totalFiles = 12
-
+randomSeq = [
+    8, 2, 6, 
+    11, 1, 5, 
+    12, 3, 7,
+    10, 4, 9 
+]
+currentSeq = 0
 
 def createDUMPFiles():
     print("Creating DUMP Files")
@@ -52,19 +58,26 @@ def start_network(network):
 
 def thread_function(net, src, dst):
     global fileDownloaded
+    global currentSeq
     print("Thread {}:{} starting".format(src, dst))
 
     while True:
-        if len(fileDownloaded) == totalFiles:
+        if currentSeq + 1 == totalFiles:
             break
+        # if len(fileDownloaded) == totalFiles:
+        #     break
+        # fileSuffix = random.randint(1, totalFiles)
+        # while fileSuffix in fileDownloaded:
+        #     fileSuffix = random.randint(1, totalFiles)
+        # fileDownloaded.append(fileSuffix)
 
-        fileSuffix = random.randint(1, totalFiles)
-        while fileSuffix in fileDownloaded:
-            fileSuffix = random.randint(1, totalFiles)
-        fileDownloaded.append(fileSuffix)
+        cmd = "wget 10.0.0.{}/DUMPS/file_{}.txt -O DUMPS/out_{}.txt".format(dst, 
+            randomSeq[currentSeq], randomSeq[currentSeq])
 
-        cmd = "wget 10.0.0.{}/DUMPS/file_{}.txt -O DUMPS/out_{}.txt".format(dst, fileSuffix, fileSuffix)
-        print("Flow starts from 10.0.0." + str(src) + " to 10.0.0." + str(dst) + " of size: " + str(2*fileSuffix) + "MB" )
+        print("Flow starts from 10.0.0." + str(src) + " to 10.0.0." + str(dst) + "Size: " + str(2*randomSeq[currentSeq]) + "MB")
+        # print("File " + str(randomSeq[currentSeq]) + ".txt")
+        currentSeq += 1
+
         out = net.hosts[src-1].cmd(cmd) 
         print("Sleeping for 1.25 sec for thread " + "10.0.0." + str(src) + " to 10.0.0." + str(dst))            
         time.sleep(1.25)
@@ -80,20 +93,18 @@ def startTCPDumps():
         os.mkdir(folder)
     except OSError:
         pass
-    for p in range(4, 7):
-        os.system("sudo tcpdump -i s1-eth{} -w " + folder + "/s1-eth{}.pcap >/dev/null 2>&1 &".format(p, p))
+    os.system("sudo tcpdump -i s1-eth4 -w " + folder + "/s1-eth4.pcap > /dev/null 2>&1 &")
+    os.system("sudo tcpdump -i s1-eth5 -w " + folder + "/s1-eth5.pcap > /dev/null 2>&1 &")
+    os.system("sudo tcpdump -i s1-eth5 -w " + folder + "/s1-eth6.pcap > /dev/null 2>&1 &")
 
-    for p in range(1, 4):
-        os.system("sudo tcpdump -i s2-eth{} -w " + folder + "/s2-eth{}.pcap >/dev/null 2>&1 &".format(p, p))
+    # os.system("sudo tcpdump -i s2-eth1 -w " + folder + "/s2-eth1.pcap >/dev/null 2>&1 &")
+    # os.system("sudo tcpdump -i s2-eth2 -w " + folder + "/s2-eth2.pcap >/dev/null 2>&1 &")
+    # os.system("sudo tcpdump -i s2-eth3 -w " + folder + "/s2-eth3.pcap >/dev/null 2>&1 &")
 
-    """ 
-        To read the dumps: 
-        $ tcpdump -r dump.pcap
-    """
 
 def createNetwork():
     try:
-        topology = MyTopo()
+        topology = MyTopo(bw=20)
         ip = '127.0.0.1'
         port = 6633 
         controllerInstance = RemoteController(
@@ -107,7 +118,7 @@ def createNetwork():
             time.sleep(1)
 
         print("*"*50)
-        print("Connected to remote controller at %s:%d\n" % ( ip, port ))
+        print("Connected to remote controller at %s:%d" % ( ip, port ))
         print("*"*50)
 
         net = Mininet(
@@ -133,12 +144,16 @@ def deleteFlows():
 def main():
     print("Creating DUMP files")
     createDUMPFiles()
-    print("Clearing previous topology")
+    
+    print("**Deleting flows**")
+    deleteFlows()
+
+    print("**Clearing previous topology**")
     os.system("sudo mn -c")
-    print("Previous topology created")
+    print("**Previous topology Deleted**")
 
     net = createNetwork()
-    if not net:
+    if net == None:
         print("Unable to create network")
         sys.exit()
 

@@ -59,7 +59,7 @@ class ACN_PART_2C (object):
     fm.match.dl_type = 0x800
     fm.match.nw_src = s_ip 
     fm.match.nw_dst = d_ip
-    fm.idle_timeout = 5
+    fm.idle_timeout = 1
     fm.hard_timeout = of.OFP_FLOW_PERMANENT
     fm.priority = 1000
     if count == 1:
