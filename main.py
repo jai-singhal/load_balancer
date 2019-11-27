@@ -119,7 +119,6 @@ class ACN_PART_2C (object):
       fm.match.in_port = self.ips_to_interface[str(s_ip)]
     fm.actions.append(of.ofp_action_output(port = o_port))
     self.connection.send(fm)
-    print("flow has been pushed from {} to {}".format(str(s_ip), str(d_ip)))
 
   @staticmethod
   def get_min(min_cost):

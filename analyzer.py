@@ -79,8 +79,8 @@ def thread_function(net, src, dst):
         currentSeq += 1
 
         out = net.hosts[src-1].cmd(cmd) 
-        print("Sleeping for 1.25 sec for thread " + "10.0.0." + str(src) + " to 10.0.0." + str(dst))            
-        time.sleep(1.25)
+        print("Sleeping for 2 sec for thread " + "10.0.0." + str(src) + " to 10.0.0." + str(dst))            
+        time.sleep(2)
         print("Wake up: thread " + "10.0.0." + str(src) + " to 10.0.0." + str(dst)) 
 
     print("Thread {}:{} Finished".format(src, dst))
@@ -95,16 +95,12 @@ def startTCPDumps():
         pass
     os.system("sudo tcpdump -i s1-eth4 -w " + folder + "/s1-eth4.pcap > /dev/null 2>&1 &")
     os.system("sudo tcpdump -i s1-eth5 -w " + folder + "/s1-eth5.pcap > /dev/null 2>&1 &")
-    os.system("sudo tcpdump -i s1-eth5 -w " + folder + "/s1-eth6.pcap > /dev/null 2>&1 &")
-
-    # os.system("sudo tcpdump -i s2-eth1 -w " + folder + "/s2-eth1.pcap >/dev/null 2>&1 &")
-    # os.system("sudo tcpdump -i s2-eth2 -w " + folder + "/s2-eth2.pcap >/dev/null 2>&1 &")
-    # os.system("sudo tcpdump -i s2-eth3 -w " + folder + "/s2-eth3.pcap >/dev/null 2>&1 &")
+    os.system("sudo tcpdump -i s1-eth6 -w " + folder + "/s1-eth6.pcap > /dev/null 2>&1 &")
 
 
 def createNetwork():
     try:
-        topology = MyTopo(bw=20)
+        topology = MyTopo(bw=4)
         ip = '127.0.0.1'
         port = 6633 
         controllerInstance = RemoteController(

@@ -3,11 +3,9 @@ import subprocess
 import re
 import matplotlib.pyplot as plt
 import pandas as pd
+import time
+import sys
 
-""" 
-    To read the dumps: 
-    $ tcpdump -r dump.pcap
-"""
 def getLogs(folder, switch, port):
     si_ethj = subprocess.Popen(
         ["tcpdump", "-r", "logs/{}/s{}-eth{}.pcap".format(folder, switch, port)],
@@ -17,58 +15,54 @@ def getLogs(folder, switch, port):
     stdout, stderr = si_ethj.communicate()
     return stdout.split("\n")
 
-s1eth4 = getLogs("2019-11-27-19-04", 1, 4)
-s1eth5 = getLogs("2019-11-27-19-04", 1, 5)
-s1eth6 = getLogs("2019-11-27-19-04", 1, 6)
 
-print(len(s1eth4))
-print(len(s1eth5))
-print(len(s1eth6))
+def getLogData(data_list):
+    log_data = list()
+    for line in data_list:
+        data = {}
+        if line.find("http") != -1:
+            data["time"] = re.findall(r"[0-9]+\:[0-9]+\:[0-9]+\.[0-9]+", line)[0]
+            ip_src_dst = re.findall(r"[0-9\.]+ > [0-9\.]+\.http", line)
+            if ip_src_dst:
+                data["type"] = "seq"
+                data["src"], data["dst"] = ip_src_dst[0].split(">")
+                data["src"] = data["src"].replace(".http", "").strip()
+                data["dst"] = data["dst"].replace(".http", "").strip()
+                data["src"] = re.sub(r"\.[0-9]{5}", "", data["src"]).strip()
+                # data["ack"] = re.findall(r"ack ([0-9]+)", line)[0]
+                # data["win"] = re.findall(r"win ([0-9]+)", line)[0]
+                log_data.append(data)
+    
+    df = pd.DataFrame(log_data)
+    df["count"] = 1
+    df["time"] = df.time.apply(lambda x: float(x[6:10]))
+    df = df.groupby(["time"], as_index=False).count()
+    df["type"] = "seq"
+    return df
 
-log_data = list()
-for line in s1eth4:
-    data = {}
+def plotter(filename, title):
+    # filename = "rr_20_2019-11-27-21-44"
 
-    if line.find("http") != -1:
-        data["time"] = re.findall(r"[0-9]+\:[0-9]+\:[0-9]+\.[0-9]+", line)[0]
-        ip_src_dst = re.findall(r"[0-9\.]+ > [0-9\.]+\.http", line)
-        if ip_src_dst:
-            data["type"] = "seq"
-            data["src"], data["dst"] = ip_src_dst[0].split(">")
-            data["src"] = data["src"].replace(".http", "").strip()
-            data["dst"] = data["dst"].replace(".http", "").strip()
-            data["src"] = re.sub(r"\.[0-9]{5}", "", data["src"]).strip()
-            # data["ack"] = re.findall(r"ack ([0-9]+)", line)[0]
-            # data["win"] = re.findall(r"win ([0-9]+)", line)[0]
-            log_data.append(data)
+    s1eth4 = getLogs(filename, 1, 4)
+    s1eth5 = getLogs(filename, 1, 5)
+    s1eth6 = getLogs(filename, 1, 6)
+    df1 = getLogData(s1eth4)
+    df2 = getLogData(s1eth5)
+    df3 = getLogData(s1eth6)
+    ax = plt.gca()
+    df1.plot(kind='line',x='time',y='count',color='red', ax = ax, label = "s1-eth4")
+    df2.plot(kind='line',x='time',y='count',color='blue', ax = ax, label = "s1-eth5")
+    df3.plot(kind='line',x='time',y='count',color='yellow', ax = ax, label = "s1-eth6")
+    plt.xlabel('Time(in sec)')
+    plt.ylabel('No. of packets')
+    plt.title('{} congestion plot'.format(title))
+    plt.show()
 
-        # ip_dst_src = re.findall(r"[0-9\.]+\.http > [0-9\.]+", line)
-        # if ip_dst_src:
-        #     data["type"] = "ack"
-        #     data["src"], data["dst"] = ip_dst_src[0].split(">")
-        #     data["src"] = data["src"].replace(".http", "").strip()
-        #     data["dst"] = data["dst"].replace(".http", "").strip()
-        #     data["dst"] = re.sub(r"\.[0-9]{5}", "", data["dst"]).strip()
+# plotter("main_20_2019-11-27-21-41", "Main Algo")
+# plotter("rr_20_2019-11-27-21-44", "Round robin Algo")
+# plotter("r_20_2019-11-27-21-47", "Random Algo")
 
-# print(log_data)
-# https://stackoverflow.com/questions/31649669/pandas-groupby-count-string-occurrence-over-column
-df = pd.DataFrame(log_data)
-df["count"] = df.groupby(["src", "dst"])["time"].transform(lambda x: x).count()
-print(df)
+plotter("main_2_2019-11-28-00-53", "Main Algo")
 
-
-# print(log_data)
-
-# plt.plot(x, y) 
-  
-# plt.xlabel('time') 
-# plt.ylabel('y - axis') 
-  
-# plt.title('My first graph!') 
-  
-# plt.show() 
-
-
-# for line in lines:
-#     print(line)
-#     print("\n\n")
+# plotter("rr_1_2019-11-28-00-03", "Round robin Algo")
+# plotter("r_20_2019-11-27-21-47", "Random Algo")
