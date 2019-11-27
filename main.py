@@ -10,9 +10,10 @@ import time
 
 log = core.getLogger()
 mapper = {}
-outFile = open("icmp_out.txt", "w")
+outFile = open("pox/misc/logs/icmp_out-" + time.strftime("%H-%M") + ".txt", "w")
 
 count = 0
+totalICMPPackets = 3
 d = {}
 def initializeMapper(mapper):
   mapper[("10.0.0.11","10.0.0.12")] = {
@@ -63,7 +64,8 @@ class ACN_PART_2C (object):
     icmp_packet=pkt.icmp()
     icmp_packet.type = packet_type
 
-    tick = str(round(time.time()%10**3, 9))
+    # tick = str(round(time.time()%10**3, 9))
+    tick = str(round(time.time(), 9))
     icmp_packet.payload =  base64.b64encode(tick)
 
     #creating ip packet
@@ -124,7 +126,7 @@ class ACN_PART_2C (object):
     min_c = 10**9
     res = None
     for key, val in min_cost.items():
-        avg_ = sum(val["time"])/5
+        avg_ = sum(val["time"])/totalICMPPackets
         if avg_ < min_c:
             min_c = avg_
             res = val["port"]
@@ -173,7 +175,8 @@ class ACN_PART_2C (object):
     elif packet.type == pkt.ethernet.IP_TYPE and packet.payload.srcip in [IPAddr('10.0.0.1{}'.format(i)) for i in range(2, 7, 2)] and packet.payload.dstip in [IPAddr('10.0.0.1{}'.format(i)) for i in range(1, 7, 2)]:
         payload_temp = packet.payload.payload.payload.raw
         tick = float(base64.b64decode(str(payload_temp)))
-        tock = round(time.time()%10**3, 9)
+        # tock = round(time.time()%10**3, 9)
+        tock = round(time.time(), 9)
         if (str(packet.payload.dstip), str(packet.payload.srcip)) in mapper.keys():
           mapper[(str(packet.payload.dstip), str(packet.payload.srcip))]["time"].append(tock-tick)
           mapper[(str(packet.payload.dstip), str(packet.payload.srcip))]["count"] += 1
@@ -185,7 +188,7 @@ class ACN_PART_2C (object):
           }
 
         count = count+1
-        if count == 15:
+        if count == totalICMPPackets*3:
             for key, val in mapper.items():
               outFile.write(str(key) + "\n")
               avg = 0
@@ -198,7 +201,7 @@ class ACN_PART_2C (object):
             count = 0
             temp = self.get_min(mapper)
             outFile.write("Link selected: " + str(temp))
-            outFile.write("-"*10 + "\n")
+            outFile.write("\n" + "-"*10 + "\n")
 
             d[self.my_packet.payload.srcip] = temp
             self.Printer(temp)
@@ -225,7 +228,7 @@ class ACN_PART_2C (object):
       mapper[("10.0.0.15","10.0.0.16")]["port"] = t+2
 
       k = 0
-      while k < 5:
+      while k < totalICMPPackets:
         icmp_packet = self.create_icmp_custom_packet(11,12,pkt.TYPE_ECHO_REQUEST)
         self.send_packet(icmp_packet, t)
 
