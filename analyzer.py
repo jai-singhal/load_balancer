@@ -3,20 +3,20 @@ from mytopo import MyTopo
 from mininet.node import Controller, RemoteController
 from mininet.util import custom, pmonitor
 from mininet.link import TCLink, Intf
+from mininet.log import info, error, warn, debug
 
 from contextlib import contextmanager
 import time
 import random
 import shutil
 import os
+import sys
 from subprocess import Popen, PIPE, call, check_call
 import logging
 import threading
 
 fileDownloaded = []
 totalFiles = 12
-tock = time.time()
-tick = time.time()
 
 
 def createDUMPFiles():
@@ -46,17 +46,12 @@ def start_network(network):
         yield network
     except Exception as e:
         print("Caught exception", e)
-    finally:
-        # time.sleep(1000)
-        print("Stopping network")
-        # network.stop()
+
     if e is not None: raise e
+
 
 def thread_function(net, src, dst):
     global fileDownloaded
-    global tock
-    global tick
-
     print("Thread {}:{} starting".format(src, dst))
 
     while True:
@@ -69,7 +64,7 @@ def thread_function(net, src, dst):
         fileDownloaded.append(fileSuffix)
 
         cmd = "wget 10.0.0.{}/DUMPS/file_{}.txt -O DUMPS/out_{}.txt".format(dst, fileSuffix, fileSuffix)
-        print("Flow of 10.0.0." + str(src) + " to 10.0.0." + str(dst) + " of size: " + str(2*fileSuffix) + "MB" )
+        print("Flow starts from 10.0.0." + str(src) + " to 10.0.0." + str(dst) + " of size: " + str(2*fileSuffix) + "MB" )
         out = net.hosts[src-1].cmd(cmd) 
         print("Sleeping for 1.25 sec for thread " + "10.0.0." + str(src) + " to 10.0.0." + str(dst))            
         time.sleep(1.25)
@@ -77,46 +72,113 @@ def thread_function(net, src, dst):
 
     print("Thread {}:{} Finished".format(src, dst))
 
-    if time.time() > tock:
-        tock = time.time()
-    
-    print(tock-tick)
+
+def startTCPDumps():
+    currtime = time.strftime("%Y-%m-%d-%H-%M")
+    folder = "logs/" + currtime
+    try:
+        os.mkdir(folder)
+    except OSError:
+        pass
+    for p in range(4, 7):
+        os.system("sudo tcpdump -i s1-eth{} -w " + folder + "/s1-eth{}.pcap >/dev/null 2>&1 &".format(p, p))
+
+    for p in range(1, 4):
+        os.system("sudo tcpdump -i s2-eth{} -w " + folder + "/s2-eth{}.pcap >/dev/null 2>&1 &".format(p, p))
+
+    """ 
+        To read the dumps: 
+        $ tcpdump -r dump.pcap
+    """
+
+def createNetwork():
+    try:
+        topology = MyTopo()
+        ip = '127.0.0.1'
+        port = 6633 
+        controllerInstance = RemoteController(
+            'c0', 
+            ip=ip,
+            port=port,
+            protocol='tcp',
+        )
+
+        while not controllerInstance.isListening(ip, port):
+            time.sleep(1)
+
+        print("*"*50)
+        print("Connected to remote controller at %s:%d\n" % ( ip, port ))
+        print("*"*50)
+
+        net = Mininet(
+            topo=topology, 
+            controller=controllerInstance,
+            link=TCLink,
+            build=False,
+            autoSetMacs = True,
+            ipBase='10.0.0.0/8'
+        )
+        return net
+
+    except Exception as e:
+        error("Exception caught %s" %(str(e), ))
+        return None
+
+
+def deleteFlows():
+    os.system("sudo ovs-ofctl del-flows s1")
+    os.system("sudo ovs-ofctl del-flows s2")
 
 
 def main():
-    global tick
+    print("Creating DUMP files")
     createDUMPFiles()
-    check_call("sudo mn -c", shell=True)
+    print("Clearing previous topology")
+    os.system("sudo mn -c")
+    print("Previous topology created")
 
-    topology = MyTopo()
-    controllerInstance = RemoteController(
-        'c0', ip='127.0.0.1', port=6633,
-        protocol='tcp',
-    )
-    net = Mininet(
-        topo=topology, 
-        controller=controllerInstance,
-        link=TCLink,
-        build=False,
-        autoSetMacs = True,
-        ipBase='10.0.0.0/8'
+    net = createNetwork()
+    if not net:
+        print("Unable to create network")
+        sys.exit()
 
-    )
-    tick = time.time()
+
     with start_network(net) as network:
         print("Beginning experiment")
 
+        # running HTTP SERVERS
         for i in range(4, 7):
             net.hosts[i-1].cmd("python -m ComplexHTTPServer 80 &") 
         print("HTTP SERVER Created")
         
+        # start tcp dumps script
+        print("TCP DUMPS script starts")
+        startTCPDumps()
+
+        # running 3 threads for wgets
+        tick = time.time()
+        threads = []
         for i in range(1, 4):
             th = threading.Thread(target=thread_function, args=(net, i, i+3))
             th.start()
-
+            threads.append(th)
         print("WGETS IS RUNNING IN BACKGROUND")
 
-        print("Experiment complete")
+        print("Waiting for threads to finish their work")
+        for th in threads:
+            th.join()
+
+        print("*"*50)
+        tock = time.time()
+        print("\nTotal time to transfer the files: " + str(round(tock-tick, 3)) + "sec\n")
+
+        print("**Deleting flows**")
+        deleteFlows()
+
+        print("**Stopping network**")
+        network.stop()
+        print("***Experiment completed***")
+
 
 if __name__ == '__main__':
     main()
